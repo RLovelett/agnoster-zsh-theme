@@ -129,7 +129,7 @@ right_prompt_git() {
       ref="$DETACHED ${ref/.../}"
     fi
     right_prompt_start $color $PRIMARY_FG
-    print -Pn " $ref"
+    print -n " $ref"
   fi
 }
 
