@@ -31,13 +31,18 @@ if [[ -z "$PRIMARY_FG" ]]; then
 fi
 
 # Characters
-SEGMENT_SEPARATOR="\ue0b0"
+RIGHT_POINTING_BLOCK_SEGMENT_SEPARATOR="\ue0b0"
+RIGHT_POINTING_SEGMENT_SEPARATOR="\ue0b1"
+LEFT_POINTING_BLOCK_SEGMENT_SEPARATOR="\ue0b2"
+LEFT_POINTING_SEGMENT_SEPARATOR="\ue0b3"
 PLUSMINUS="\u00b1"
 BRANCH="\ue0a0"
 DETACHED="\u27a6"
-CROSS="\u2718"
+CROSS="\xF0\x9F\x98\xA1 "
 LIGHTNING="\u26a1"
 GEAR="\u2699"
+LINE_NUMBER="\ue0a1"
+LOCK="\ue0a2"
 
 # Begin a segment
 # Takes two arguments, background and foreground. Both can be omitted,
@@ -47,7 +52,9 @@ prompt_segment() {
   [[ -n $1 ]] && bg="%K{$1}" || bg="%k"
   [[ -n $2 ]] && fg="%F{$2}" || fg="%f"
   if [[ $CURRENT_BG != 'NONE' && $1 != $CURRENT_BG ]]; then
-    print -n "%{$bg%F{$CURRENT_BG}%}$SEGMENT_SEPARATOR%{$fg%}"
+    print -n "%{$bg%F{$CURRENT_BG}%}$RIGHT_POINTING_BLOCK_SEGMENT_SEPARATOR%{$fg%}"
+  elif [[ $CURRENT_BG != 'NONE' && $1 == $CURRENT_BG ]]; then
+    print -n "%{$bg%F{$2}%}$RIGHT_POINTING_SEGMENT_SEPARATOR%{$fg%}"
   else
     print -n "%{$bg%}%{$fg%}"
   fi
@@ -58,11 +65,34 @@ prompt_segment() {
 # End the prompt, closing any open segments
 prompt_end() {
   if [[ -n $CURRENT_BG ]]; then
-    print -n "%{%k%F{$CURRENT_BG}%}$SEGMENT_SEPARATOR"
+    print -n "%{%k%F{$CURRENT_BG}%}$RIGHT_POINTING_BLOCK_SEGMENT_SEPARATOR"
   else
     print -n "%{%k%}"
   fi
   print -n "%{%f%}"
+  CURRENT_BG=''
+}
+
+right_prompt_start() {
+  local bg fg
+  [[ -n $1 ]] && bg="%K{$1}" || bg="%k"
+  [[ -n $2 ]] && fg="%F{$2}" || fg="%f"
+  if [[ $CURRENT_BG == 'NONE' ]]; then
+    print -n "%{%k%F{$1}%}$LEFT_POINTING_BLOCK_SEGMENT_SEPARATOR%{$bg%}%{$fg%}"
+  elif [[ $1 == $CURRENT_BG ]]; then
+    print -n "%{$fg%}$LEFT_POINTING_SEGMENT_SEPARATOR%{$bg%}%{$fg%}"
+  else
+    print -n "%{%F{$1}%}$LEFT_POINTING_BLOCK_SEGMENT_SEPARATOR%{$bg%}%{$fg%}"
+  fi
+  CURRENT_BG=$1
+  [[ -n $3 ]] && print -n $3
+}
+
+# End the right prompt, closing any open segments
+right_prompt_end() {
+  if [[ -n $CURRENT_BG ]]; then
+    print -n "%{%f%k%}"
+  fi
   CURRENT_BG=''
 }
 
@@ -79,7 +109,7 @@ prompt_context() {
 }
 
 # Git: branch/detached head, dirty status
-prompt_git() {
+right_prompt_git() {
   local color ref
   is_dirty() {
     test -n "$(git status --porcelain --ignore-submodules)"
@@ -98,7 +128,7 @@ prompt_git() {
     else
       ref="$DETACHED ${ref/.../}"
     fi
-    prompt_segment $color $PRIMARY_FG
+    right_prompt_start $color $PRIMARY_FG
     print -Pn " $ref"
   fi
 }
@@ -139,13 +169,20 @@ prompt_agnoster_main() {
   prompt_context
   prompt_virtualenv
   prompt_dir
-  prompt_git
   prompt_end
+}
+
+prompt_agnoster_right() {
+  CURRENT_BG='NONE'
+  right_prompt_start green $PRIMARY_FG ' %t '
+  right_prompt_git
+  right_prompt_end
 }
 
 prompt_agnoster_precmd() {
   vcs_info
-  PROMPT='%{%f%b%k%}$(prompt_agnoster_main) '
+  PROMPT=$'%{%f%b%k%}$(prompt_agnoster_main)\n\u21e8  '
+  RPROMPT=$'%{%f%b%k%}$(prompt_agnoster_right)'
 }
 
 prompt_agnoster_setup() {
